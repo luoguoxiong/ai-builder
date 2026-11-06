@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nota · 说一句话，把事办好</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">N</span>
+      <div>
+        <h1>Nota</h1>
+        <p>说一句话 → AI 整理摘要与待办，并帮你把事情办了</p>
+      </div>
+    </div>
+    <div class="chips">
+      <span id="mode-chip" class="chip">…</span>
+      <span id="quota-chip" class="chip">额度加载中…</span>
+      <button id="devices-btn" class="chip chip-btn" type="button">设备</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel chat-panel">
+      <div id="chat" class="chat">
+        <div class="hint">试试：<br/>「明天上午 9 点提醒我给客户回电话，另外下班前要买牛奶」<br/>「我上个月跟张总聊的报价是多少？」<br/>语音：点击输入框左侧麦克风说话（Chrome/Edge）</div>
+      </div>
+      <div class="composer">
+        <button id="mic" type="button" class="mic-btn" title="语音输入" hidden>🎤</button>
+        <textarea id="input" rows="1" placeholder="试试：明天上午 9 点提醒我给客户回电话，另外下班前要买牛奶"></textarea>
+        <button id="send" type="button">发送</button>
+      </div>
+    </section>
+
+    <aside class="panel todo-panel">
+      <div class="panel-head">
+        <h2>待办</h2>
+        <span id="todo-count" class="chip subtle"></span>
+      </div>
+      <div id="todos" class="todos"></div>
+    </aside>
+  </main>
+
+  <!-- 设备管理弹层：多端配对（App / ESP32 硬件） -->
+  <div id="devices-modal" class="modal-mask" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>多端设备</h2>
+        <button id="devices-close" class="icon-btn" type="button">✕</button>
+      </div>
+      <p class="modal-tip">App 与 ESP32 硬件通过<b>配对码</b>绑定到当前身份，三端共享待办、历史与提醒。</p>
+
+      <div class="pair-box">
+        <div class="pair-left">
+          <div class="pair-title">① 生成配对码（5 分钟内有效）</div>
+          <button id="pair-gen" class="btn primary" type="button">生成配对码</button>
+        </div>
+        <div id="pair-display" class="pair-display" hidden>
+          <div id="pair-code" class="pair-code">······</div>
+          <div id="pair-countdown" class="pair-countdown"></div>
+        </div>
+      </div>
+
+      <div class="pair-box steps-box">
+        <div class="pair-title">② 接入方式</div>
+        <ul class="pair-steps">
+          <li><b>手机 App</b>：首次打开输入本页地址 + 配对码即可绑定；</li>
+          <li><b>ESP32 硬件</b>：在 Wokwi 仿真器（或实物）串口监视器输入配对码，OLED 显示"配对成功"。</li>
+        </ul>
+      </div>
+
+      <div class="device-list-head">
+        <div class="pair-title">已绑定设备</div>
+        <span id="device-count" class="chip subtle"></span>
+      </div>
+      <div id="device-list" class="device-list"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

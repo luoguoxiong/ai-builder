@@ -1,0 +1,22 @@
+{
+  "name": "nota-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nota MVP：说一段话 → AI 整理摘要与待办，并调用工具把事情办了",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "seed:history": "node scripts/seed-history.mjs",
+    "backfill": "node scripts/backfill-facts.mjs",
+    "eval:quota": "node scripts/eval-quota.mjs",
+    "eval:history": "node scripts/eval-history.mjs",
+    "eval:device": "node scripts/eval-device.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^4.21.2"
+  }
+}

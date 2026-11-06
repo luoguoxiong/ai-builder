@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Nota",
+    "slug": "nota-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
+  }
+}

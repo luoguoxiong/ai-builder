@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "author": "Nota MVP",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-c-v4", "id": "esp", "top": 40, "left": 20, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled",
+      "top": 20,
+      "left": 320,
+      "attrs": { "i2c-address": "0x3c" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 220,
+      "left": 300,
+      "attrs": { "color": "green", "label": "记一笔 / 长按完成", "xray": "1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": 220,
+      "left": 60,
+      "attrs": { "color": "red", "label": "提醒" }
+    },
+    { "type": "wokwi-resistor", "id": "r1", "top": 200, "left": 100, "attrs": { "value": "220" } },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 260,
+      "left": 140,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "oled:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "oled:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "oled:SCL", "esp:22", "gold", [ "v0" ] ],
+    [ "oled:SDA", "esp:21", "orange", [ "v0" ] ],
+    [ "btn1:1.l", "esp:4", "green", [ "v0" ] ],
+    [ "btn1:2.l", "esp:GND.2", "black", [ "v0" ] ],
+    [ "led1:A", "r1:1", "red", [ "v0" ] ],
+    [ "r1:2", "esp:25", "red", [ "v0" ] ],
+    [ "led1:C", "esp:GND.3", "black", [ "v0" ] ],
+    [ "bz1:1", "esp:26", "purple", [ "v0" ] ],
+    [ "bz1:2", "esp:GND.4", "black", [ "v0" ] ]
+  ]
+}
