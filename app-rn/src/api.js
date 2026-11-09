@@ -89,6 +89,10 @@ export function xhrSSE(config, { method = 'GET', path, body }, onEvent, onDone) 
 export const chatSSE = (config, text, onEvent, onDone) =>
   xhrSSE(config, { method: 'POST', path: '/api/chat', body: { text } }, onEvent, onDone);
 
+/** 最近对话历史（进聊天页恢复会话；服务端按身份存最近 N 条 user/assistant 消息） */
+export const fetchMessages = (config, limit = 50) =>
+  apiFetch(config, `/api/messages?limit=${limit}`);
+
 /** 提醒/多端同步事件长连接（返回 close） */
 export function openEvents(config, onEvent) {
   return xhrSSE(config, { path: '/api/events' }, onEvent, () => {});

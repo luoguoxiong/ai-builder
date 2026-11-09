@@ -26,9 +26,21 @@ CREATE TABLE IF NOT EXISTS usage_log (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   uid         TEXT NOT NULL,
   day         TEXT NOT NULL,            -- Asia/Shanghai 自然日 YYYY-MM-DD
+  msg_id      TEXT,                     -- 客户端幂等键 client_msg_id（历史行为 NULL）
+  refunded    INTEGER NOT NULL DEFAULT 0, -- 1=已退回（任务失败释放，计数时排除）
   created_at  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_usage_uid_day ON usage_log(uid, day);
+
+-- 请求幂等表：同 (uid, client_msg_id) 的重复请求（网络重试/重复触发）只扣一次费
+CREATE TABLE IF NOT EXISTS idem (
+  uid            TEXT NOT NULL,
+  client_msg_id  TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'reserved', -- reserved | done | cancelled
+  created_at     TEXT NOT NULL,
+  settled_at     TEXT,
+  PRIMARY KEY (uid, client_msg_id)
+);
 
 CREATE TABLE IF NOT EXISTS todos (
   id             TEXT PRIMARY KEY,
@@ -101,5 +113,9 @@ try { db.exec('ALTER TABLE todos ADD COLUMN remind_ack INTEGER NOT NULL DEFAULT 
 
 // 旧库迁移：facts 表补 src_id 列
 try { db.exec('ALTER TABLE facts ADD COLUMN src_id TEXT'); } catch { /* 列已存在 */ }
+
+// 旧库迁移：usage_log 补 msg_id / refunded 列
+try { db.exec('ALTER TABLE usage_log ADD COLUMN msg_id TEXT'); } catch { /* 列已存在 */ }
+try { db.exec('ALTER TABLE usage_log ADD COLUMN refunded INTEGER NOT NULL DEFAULT 0'); } catch { /* 列已存在 */ }
 
 export const nowISO = () => new Date().toISOString();

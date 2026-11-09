@@ -114,6 +114,14 @@ function handleEvent(ev, box) {
   }
 }
 
+/* 幂等键：每次"用户动作"（点一次发送/一次语音提交）生成一个 id，
+   网络层重试必须复用同一 id，服务端据此保证同一次动作只扣一次费 */
+function newMsgId() {
+  return crypto.randomUUID
+    ? crypto.randomUUID()
+    : `m-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 async function send() {
   const input = $('#input');
   const text = input.value.trim();
@@ -125,12 +133,13 @@ async function send() {
 
   addMsg('user', text);
   const box = addAssistantShell();
+  const clientMsgId = newMsgId();
 
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, client_msg_id: clientMsgId }),
     });
 
     if (res.status === 429) {
@@ -138,6 +147,12 @@ async function send() {
       state.quota = b; renderQuota();
       addStep(box.querySelector('.steps'),
         `今日 ${b.limit} 次额度已用完，${fmtReset(b.resetAt)} 重置后可继续使用`, 'err');
+      return;
+    }
+    if (res.status === 409) {
+      const b = await res.json();
+      state.quota = b; renderQuota();
+      addStep(box.querySelector('.steps'), '该请求已提交过（重复请求已忽略，不重复扣费）', 'warn');
       return;
     }
     if (!res.ok) {

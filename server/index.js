@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
-import { resolveIdentity, consumeQuota, quotaInfo } from './quota.js';
+import { resolveIdentity, consumeQuota, settleQuota, quotaInfo } from './quota.js';
 import { runAgent } from './agent.js';
 import { addClient, sendToUser } from './sse.js';
 import { startScheduler } from './scheduler.js';
@@ -123,12 +123,20 @@ app.post('/api/device/button', (req, res) => {
   res.json(r);
 });
 
-// Agent 会话入口：先扣额度（超限 429），再以 SSE 流式返回调用过程
+// Agent 会话入口：先扣额度（超限 429），再以 SSE 流式返回调用过程。
+// 幂等：客户端为每次"用户动作"生成 client_msg_id，网络重试/重复触发携带同一 id
+// 只扣一次费（重复请求 409）；Agent 成功确认额度，失败自动退回。
 app.post('/api/chat', (req, res) => {
   const text = String(req.body?.text || '').trim();
   if (!text) return res.status(400).json({ error: 'empty_text' });
+  const clientMsgId = req.body?.client_msg_id
+    ? String(req.body.client_msg_id).slice(0, 64)
+    : null;
 
-  const q = consumeQuota(req.uid);
+  const q = consumeQuota(req.uid, clientMsgId);
+  if (q.duplicate) {
+    return res.status(409).json({ error: 'duplicate_request', ...quotaInfo(req.uid) });
+  }
   if (!q.ok) {
     return res.status(429).json({ error: 'quota_exceeded', ...quotaInfo(req.uid) });
   }
@@ -150,11 +158,14 @@ app.post('/api/chat', (req, res) => {
   emit({ type: 'quota', quota: quotaInfo(req.uid) });
   runAgent({ uid: req.uid, text, emit })
     .then(() => {
+      settleQuota(req.uid, clientMsgId, true);
       emit({ type: 'done', todos: listTodos(req.uid, { status: 'all' }), quota: quotaInfo(req.uid) });
       res.end();
     })
     .catch((err) => {
+      settleQuota(req.uid, clientMsgId, false, q.logId);
       emit({ type: 'error', message: String(err?.message || err) });
+      emit({ type: 'done', todos: listTodos(req.uid, { status: 'all' }), quota: quotaInfo(req.uid) });
       res.end();
     });
 });

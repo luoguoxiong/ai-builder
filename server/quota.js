@@ -88,25 +88,59 @@ export function resolveIdentity(req, res) {
   return true;
 }
 
-const usedTodayStmt = db.prepare('SELECT COUNT(*) AS n FROM usage_log WHERE uid = ? AND day = ?');
+const usedTodayStmt = db.prepare('SELECT COUNT(*) AS n FROM usage_log WHERE uid = ? AND day = ? AND refunded = 0');
 
 export function usedToday(uid) {
   return usedTodayStmt.get(uid, shanghaiDay()).n;
 }
 
+const getIdem = db.prepare('SELECT status FROM idem WHERE uid = ? AND client_msg_id = ?');
+const insertIdem = db.prepare(
+  "INSERT INTO idem (uid, client_msg_id, status, created_at) VALUES (?, ?, 'reserved', ?)"
+);
+const insertUsage = db.prepare('INSERT INTO usage_log (uid, day, msg_id, created_at) VALUES (?, ?, ?, ?)');
+
 /**
- * 扣减额度：BEGIN IMMEDIATE 单条事务（计数 + 写日志原子化），
+ * 扣减额度：BEGIN IMMEDIATE 单条事务（幂等登记 + 计数 + 写日志原子化），
  * 同进程被事件loop串行化、多进程被 SQLite 写锁串行化，并发打不穿。
+ *
+ * 幂等：同一 (uid, client_msg_id) 的重复请求（网络重试/前端重复触发）返回
+ * { ok:false, duplicate:true }，不二次扣费；重试方应停止重试。
+ *
+ * 先扣后做：调用方任务成功后 settleQuota(ok=true) 确认；失败后
+ * settleQuota(ok=false, logId) 退还本次额度（refunded=1，计数排除）。
  */
-export function consumeQuota(uid) {
+export function consumeQuota(uid, clientMsgId) {
   const day = shanghaiDay();
   const txn = db.transaction(() => {
+    if (clientMsgId) {
+      const seen = getIdem.get(uid, clientMsgId);
+      if (seen) return { ok: false, duplicate: true, idemStatus: seen.status, used: usedToday(uid) };
+      insertIdem.run(uid, clientMsgId, nowISO());
+    }
     const used = usedToday(uid);
     if (used >= FREE_DAILY_LIMIT) return { ok: false, used };
-    db.prepare('INSERT INTO usage_log (uid, day, created_at) VALUES (?, ?, ?)').run(uid, day, nowISO());
-    return { ok: true, used: used + 1 };
+    const r = insertUsage.run(uid, day, clientMsgId || null, nowISO());
+    return { ok: true, used: used + 1, logId: Number(r.lastInsertRowid) };
   });
   return txn.immediate();
+}
+
+/** 结算：成功确认 reserved→done；失败 reserved→cancelled 并退回本次额度 */
+export function settleQuota(uid, clientMsgId, ok, logId) {
+  if (!clientMsgId) return;
+  const mark = db.prepare(
+    'UPDATE idem SET status = ?, settled_at = ? WHERE uid = ? AND client_msg_id = ? AND status = ?'
+  );
+  if (ok) {
+    mark.run('done', nowISO(), uid, clientMsgId, 'reserved');
+    return;
+  }
+  const txn = db.transaction(() => {
+    mark.run('cancelled', nowISO(), uid, clientMsgId, 'reserved');
+    db.prepare('UPDATE usage_log SET refunded = 1 WHERE id = ? AND refunded = 0').run(logId);
+  });
+  txn.immediate();
 }
 
 export function quotaInfo(uid) {

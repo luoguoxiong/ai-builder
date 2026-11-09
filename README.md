@@ -10,7 +10,7 @@ npm install
 npm start              # 打开 http://127.0.0.1:3016
 ```
 
-- 环境要求：Node.js ≥ 18（`.env` 会被服务端自动读取，无需额外配置）。
+- 环境要求：Node.js ≥ 22（`.env` 会被服务端自动读取，无需额外配置）。
 - 对话与待办均持久化在服务端：刷新页面、重启服务都不会丢。
 - 模型：默认 DeepSeek `deepseek-chat`，通过 `LLM_BASE_URL` / `LLM_MODEL` 可切换任何 OpenAI 兼容模型（Kimi / GLM / 通义等），要求支持 function calling。
 

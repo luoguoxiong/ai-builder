@@ -1,10 +1,10 @@
 /** 聊天页：Agent 调用过程时间线可视化（与网页版一致的 SSE 事件流） */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, StyleSheet,
 } from 'react-native';
-import { chatSSE } from './api';
+import { chatSSE, fetchMessages } from './api';
 
 const fmtTime = (iso) => {
   if (!iso) return '';
@@ -36,6 +36,23 @@ export default function ChatScreen({ config, initialText }) {
   const abortRef = useRef(null);
 
   const scrollToEnd = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+
+  // 进页恢复会话：拉服务端最近对话历史（每条只有 content，无工具调用步骤）
+  const loadHistory = useCallback(async () => {
+    try {
+      const r = await fetchMessages(config, 50);
+      if (r.status !== 200 || !Array.isArray(r.body?.messages)) return;
+      const hist = r.body.messages.map((m, i) => ({
+        id: `h-${i}`,
+        role: m.role,
+        text: m.content,
+        time: m.created_at,
+      }));
+      if (hist.length) setMessages((ms) => (ms.length ? ms : hist)); // 已有本地消息（极端竞态）不覆盖
+    } catch { /* 网络异常时留空，不影响新对话 */ }
+  }, [config]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const patchLast = useCallback((fn) => {
     setMessages((ms) => {
